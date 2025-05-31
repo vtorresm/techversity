@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -196,4 +197,17 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
                                 <div className="flex items-center">
                                     <DownloadIcon className="h-4 w-4 mr-2 text-primary" />
                                     <span>{res.name}</span>
-                                
+                                </div>
+                                <span className="text-xs text-muted-foreground">{res.size}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
