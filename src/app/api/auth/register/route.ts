@@ -1,6 +1,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { addUser, findUserByEmail } from '@/lib/mock-db';
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
@@ -16,29 +17,32 @@ export async function POST(request: NextRequest) {
     const parsed = registerSchema.safeParse(body);
 
     if (!parsed.success) {
-      // Log detailed validation errors during development
-      // console.error("Validation errors:", parsed.error.issues);
       return NextResponse.json({ success: false, message: 'Invalid input.', errors: parsed.error.issues }, { status: 400 });
     }
 
     const { fullName, email, password, role } = parsed.data;
 
-    // In a real app, you would save the user to a database here.
-    // For now, we'll just simulate success if the input is valid.
-    // We can also simulate checking if a user already exists.
-    // if (email === 'existinguser@example.com') {
-    //   return NextResponse.json({ success: false, message: 'Email already in use.' }, { status: 409 });
-    // }
+    if (findUserByEmail(email)) {
+      return NextResponse.json({ success: false, message: 'Email already in use.' }, { status: 409 });
+    }
 
-    console.log('Simulating user registration:', { fullName, email, role });
+    const newUser = addUser({ fullName, email, password, role });
+
+    if (!newUser) {
+        // This case should ideally be caught by the findUserByEmail check above,
+        // but it's a good practice to handle potential null returns from addUser.
+        return NextResponse.json({ success: false, message: 'User registration failed. Please try again.' }, { status: 500 });
+    }
+
+    console.log('User registered and added to mock DB:', { fullName: newUser.fullName, email: newUser.email, role: newUser.role });
 
     return NextResponse.json({
       success: true,
       message: 'Registration successful!',
       user: {
-        fullName,
-        email,
-        role,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        role: newUser.role,
       },
     }, { status: 201 }); // 201 Created for successful registration
 

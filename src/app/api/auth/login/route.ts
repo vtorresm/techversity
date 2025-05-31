@@ -1,17 +1,12 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { findUserByEmail, verifyPassword } from '@/lib/mock-db';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
-
-// Mocked user data
-const mockUsers = [
-  { email: 'student@example.com', password: 'password123', role: 'student', fullName: 'Student User' },
-  { email: 'instructor@example.com', password: 'password123', role: 'instructor', fullName: 'Instructor User' },
-];
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,11 +19,11 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = parsed.data;
 
-    const user = mockUsers.find(u => u.email === email && u.password === password);
+    const user = findUserByEmail(email);
 
-    if (user) {
+    if (user && verifyPassword(password, user.passwordHash)) {
       // In a real app, generate a JWT or session token here
-      const mockToken = `mock-jwt-token-for-${user.email}`;
+      const mockToken = `mock-jwt-token-for-${user.email}`; // NOSONAR
       return NextResponse.json({
         success: true,
         message: 'Login successful!',
