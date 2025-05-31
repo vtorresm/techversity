@@ -1,9 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { AuthFormWrapper } from '@/components/auth-form-wrapper';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,18 +16,23 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { EyeIcon, EyeOffIcon, GithubIcon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, GithubIcon, Loader2Icon } from 'lucide-react';
 import React from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  password: z.string().min(1, { message: 'Password is required.' }), // Min 1 to ensure it's not empty
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -36,11 +41,54 @@ export default function LoginPage() {
     },
   });
 
-  function onSubmit(values: LoginFormValues) {
-    // Handle login logic here
-    console.log(values);
-    // Example: router.push('/dashboard/student');
+  async function onSubmit(values: LoginFormValues) {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({
+          title: 'Login Successful!',
+          description: data.message || 'Redirecting to your dashboard...',
+        });
+        // In a real app, you'd store the token (data.token)
+        // and user info (data.user) in context or state management.
+        console.log('Logged in user:', data.user);
+        console.log('Token:', data.token);
+
+        // Redirect based on role
+        if (data.user?.role === 'student') {
+          router.push('/dashboard/student');
+        } else if (data.user?.role === 'instructor') {
+          router.push('/dashboard/instructor');
+        } else {
+          router.push('/'); // Fallback redirect
+        }
+      } else {
+        toast({
+          title: 'Login Failed',
+          description: data.message || 'An error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Login submission error:', error);
+      toast({
+        title: 'Login Error',
+        description: 'An unexpected error occurred. Please try again later.',
+        variant: 'destructive',
+      });
+    }
   }
+
+  const { isSubmitting } = form.formState;
 
   return (
     <AuthFormWrapper
@@ -56,7 +104,7 @@ export default function LoginPage() {
               <FormItem>
                 <FormLabel>Email Address</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="you@example.com" {...field} />
+                  <Input type="email" placeholder="you@example.com" {...field} disabled={isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -75,13 +123,14 @@ export default function LoginPage() {
                 </div>
                 <FormControl>
                     <div className="relative">
-                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} disabled={isSubmitting} />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-primary"
                             onClick={() => setShowPassword(!showPassword)}
+                            disabled={isSubmitting}
                         >
                             {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                             <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
@@ -92,8 +141,15 @@ export default function LoginPage() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-            Sign In
+          <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                Signing In...
+              </>
+            ) : (
+              'Sign In'
+            )}
           </Button>
         </form>
       </Form>
@@ -106,7 +162,7 @@ export default function LoginPage() {
                 <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
             </div>
         </div>
-        <Button variant="outline" className="w-full mt-4">
+        <Button variant="outline" className="w-full mt-4" disabled={isSubmitting}>
             <GithubIcon className="mr-2 h-4 w-4" />
             GitHub
         </Button>

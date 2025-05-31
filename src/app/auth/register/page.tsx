@@ -1,9 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { AuthFormWrapper } from '@/components/auth-form-wrapper';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,10 +16,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { EyeIcon, EyeOffIcon, GithubIcon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, GithubIcon, Loader2Icon } from 'lucide-react';
 import React from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const registerSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -33,6 +35,9 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -44,11 +49,42 @@ export default function RegisterPage() {
     },
   });
 
-  function onSubmit(values: RegisterFormValues) {
-    // Handle registration logic here
-    console.log(values);
-    // Example: router.push('/dashboard/student');
+  async function onSubmit(values: RegisterFormValues) {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({
+          title: 'Registration Successful!',
+          description: data.message || 'You can now log in with your new account.',
+        });
+        router.push('/auth/login');
+      } else {
+        toast({
+          title: 'Registration Failed',
+          description: data.message || 'An error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Registration submission error:', error);
+      toast({
+        title: 'Registration Error',
+        description: 'An unexpected error occurred. Please try again later.',
+        variant: 'destructive',
+      });
+    }
   }
+
+  const { isSubmitting } = form.formState;
 
   return (
     <AuthFormWrapper
@@ -64,7 +100,7 @@ export default function RegisterPage() {
               <FormItem>
                 <FormLabel>Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} />
+                  <Input placeholder="John Doe" {...field} disabled={isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -77,7 +113,7 @@ export default function RegisterPage() {
               <FormItem>
                 <FormLabel>Email Address</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="you@example.com" {...field} />
+                  <Input type="email" placeholder="you@example.com" {...field} disabled={isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -91,13 +127,14 @@ export default function RegisterPage() {
                 <FormLabel>Password</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
-                    <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
+                    <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} disabled={isSubmitting}/>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
                         className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-primary"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isSubmitting}
                     >
                         {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                         <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
@@ -119,6 +156,7 @@ export default function RegisterPage() {
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                     className="flex space-x-4"
+                    disabled={isSubmitting}
                   >
                     <FormItem className="flex items-center space-x-2 space-y-0">
                       <FormControl>
@@ -147,6 +185,7 @@ export default function RegisterPage() {
                   <Checkbox
                     checked={field.value}
                     onCheckedChange={field.onChange}
+                    disabled={isSubmitting}
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
@@ -162,9 +201,15 @@ export default function RegisterPage() {
             )}
           />
 
-
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-            Create Account
+          <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              'Create Account'
+            )}
           </Button>
         </form>
       </Form>
@@ -177,7 +222,7 @@ export default function RegisterPage() {
                 <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
             </div>
         </div>
-        <Button variant="outline" className="w-full mt-4">
+        <Button variant="outline" className="w-full mt-4" disabled={isSubmitting}>
             <GithubIcon className="mr-2 h-4 w-4" />
             GitHub
         </Button>
